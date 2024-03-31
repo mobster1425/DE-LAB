@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <style>
+        /* Styles for header */
+        header {
+            background-color: #3498db;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+        }
+
+        /* Styles for expense cards */
+        .expense-card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 10px;
+            padding: 10px;
+            width: 200px;
+            display: inline-block;
+            vertical-align: top;
+            background-color: #f9f9f9;
+        }
+
+        .expense-card h3 {
+            margin-top: 0;
+        }
+
+        /* Styles for forms */
+        form {
+            margin-bottom: 20px;
+        }
+
+        /* Styles for charts */
+        canvas {
+            margin-top: 20px;
+            display: block;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Style for logout button */
+        #logout-btn {
+            background-color: #f44336;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+    </style>
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Expense Tracker</h1>
+        <!-- Add logout button -->
+        <button id="logout-btn" onclick="logout()">Logout</button>
+    </header>
+    
+    {% if not expenses %}
+        <p>No expenses added yet. Start tracking your expenses!</p>
+    {% else %}
+        <!-- Display expenses -->
+        <h2>Your Expenses</h2>
+        <div class="expense-cards">
+            {% for expense in expenses %}
+            <div class="expense-card">
+                <h3>{{ expense.item }}</h3>
+                <p><strong>Amount:</strong> ${{ expense.amount }}</p>
+                <p><strong>Category:</strong> {{ expense.category }}</p>
+                <p><strong>Date:</strong> {{ expense.date }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Add a button to navigate to All Expenses page -->
+<a href="{{ url_for('all_expenses') }}"><button>View All Expenses</button></a>
+
+    <form id="expense-form" action="{{ url_for('expense_tracker') }}" method="POST">
+        {{ form.csrf_token }}
+        <input type="hidden" id="user_id" name="user_id" value="{{ user_id }}">
+        <input type="text" id="item" name="item" placeholder="Enter item name" required>
+        <input type="number" id="amount" name="amount" placeholder="Enter amount" required>
+        <select id="category" name="category" required>
+            <option value="" disabled selected>Select category</option>
+            <option value="Food">Food</option>
+            <option value="Transportation">Transportation</option>
+            <option value="Housing">Housing</option>
+            <!-- Add more categories as needed -->
+        </select>
+        <input type="date" id="date" name="date" required>
+        <button type="submit">Add Expense</button>
+    </form>
+
+    <!-- Add a button to generate statement -->
+    <a href="{{ url_for('generate_statement', year=current_year, month=current_month) }}"><button>Generate Statement for This Month</button></a>
+
+    <div class="container">
+        <h2>Expense Tracker</h2>
+        <!-- Add the receipt upload form directly into this page -->
+        <h3>Upload Receipt</h3>
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+            {{ form.csrf_token }}
+            <input type="file" id="receiptImage" name="receiptImage" accept="image/*" required>
+            <button type="submit">Upload</button>
+        </form>
+        <!-- Your existing expense tracking form and data display -->
+    </div
+
+    <!-- Add a canvas element for the pie chart -->
+    <canvas id="myPieChart" ></canvas>
+ 
+    <script>
+        function logout() {
+            // Redirect to logout route
+            window.location.href = "{{ url_for('logout') }}";
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Existing JavaScript code to handle form submission
+            document.getElementById('expense-form').addEventListener('submit', function(event) {
+                event.preventDefault();  // Prevent default form submission
+    
+                // Get form data
+                var formData = new FormData(document.getElementById('expense-form'));
+    
+                // Send POST request to add expense
+                fetch('{{ url_for("expense_tracker") }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // No need to parse JSON response here
+                        alert('Expense added successfully!');
+                        window.location.href = '/expenses'; // Redirect to expenses page
+                    } else {
+                        throw new Error('Failed to add expense1');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to add expense2');
+                });
+            });
+    
+            // New JavaScript code to render pie chart
+            fetch('/expenses-data')
+            .then(response => response.json())
+            .then(data => {
+                const categories = Object.keys(data);
+                const amounts = Object.values(data);
+    
+                new Chart(document.getElementById('myPieChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            label: 'Expenses by Category',
+                            data: amounts,
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.5)', // Red
+                                'rgba(54, 162, 235, 0.5)', // Blue
+                                'rgba(255, 206, 86, 0.5)', // Yellow
+                                'rgba(75, 192, 192, 0.5)', // Green
+                                // Add more colors as needed
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                // Add more colors as needed
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        // Add chart options here (e.g., legend, title, etc.)
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching expenses data:', error);
+            });
+        });
+    </script>
+    
+    
+    
+</body>
+</html>

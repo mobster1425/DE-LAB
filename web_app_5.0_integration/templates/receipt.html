@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Uploaded Receipts</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+</head>
+
+<body>
+
+<div class="container">
+  <h2>Uploaded Receipts</h2>
+  <div class="receipt">
+    {% if prices %}
+    <h5>Items: </h5>
+      <ul>
+        {% for recit in prices %}
+          <li>Filename: {{ filename }}</li>
+          <li>Prices: {{ recit }}</li>
+          <hr>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No receipts uploaded yet.</p>
+    {% endif %}
+  </div>
+  <a href="/expense_tracker">Back to Upload Page</a>
+</div>
+
+</body>
+
+</html>

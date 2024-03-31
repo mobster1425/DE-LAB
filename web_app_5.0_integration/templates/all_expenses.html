@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Expenses</title>
+    <style>
+        /* Add some styling to the expense cards */
+        .expense-card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+    </style>
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <select id="categoryFilter">
+        <option value="">Select category</option>
+        <option value="Food">Food</option>
+        <option value="Transportation">Transportation</option>
+        <option value="Housing">Housing</option>
+        <!-- Add more categories as needed -->
+    </select>
+
+    <h1>All Expenses</h1>
+    <!-- Inside the loop for displaying expenses -->
+    {% for expense in expenses %}
+    <div class="expense-card">
+        <!-- Display expense information -->
+        <h3>{{ expense.item }}</h3>
+        <p><strong>Amount:</strong> ${{ expense.amount }}</p>
+        <p class="category"><strong>Category:</strong> {{ expense.category }}</p>
+        <p><strong>Date:</strong> {{ expense.date }}</p>
+        
+        <!-- Edit button -->
+        <button class="edit-expense-btn" data-expense-id="{{ expense.id }}">Edit</button>
+        
+        <!-- Delete button -->
+        <form action="{{ url_for('delete_expense', expense_id=expense.id) }}" method="POST" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">Delete</button>
+        </form>
+    </div>
+    {% endfor %}
+
+    <!-- Edit Expense Modal -->
+    <div class="modal" id="editExpenseModal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Edit Expense</h2>
+            <form id="edit-expense-form" method="POST">
+                <input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="edit-expense-id" name="expense_id">
+                <input type="text" id="edit-item" name="item" placeholder="Enter item name" required>
+                <input type="number" id="edit-amount" name="amount" placeholder="Enter amount" required>
+                <select id="edit-category" name="category" required>
+                    <option value="" disabled selected>Select category</option>
+                    <option value="Food">Food</option>
+                    <option value="Transportation">Transportation</option>
+                    <option value="Housing">Housing</option>
+                    <!-- Add more categories as needed -->
+                </select>
+                <input type="date" id="edit-date" name="date" required>
+                <button type="submit">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add a canvas element for the pie chart with reduced size -->
+    <canvas id="allExpensesPieChart" width="400" height="400"></canvas>
+    
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Fetch expenses data
+            fetch('/expenses-data')
+            .then(response => response.json())
+            .then(data => {
+                const categories = Object.keys(data);
+                const amounts = Object.values(data);
+
+                const otherCategories = categories.filter(category => category !== 'Food' && category !== 'Transportation' && category !== 'Housing');
+
+                // Add other categories to the dropdown menu
+        otherCategories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            document.getElementById('categoryFilter').appendChild(option);
+        });
+    
+                // Render pie chart
+                new Chart(document.getElementById('allExpensesPieChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            label: 'Expenses by Category',
+                            data: amounts,
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.5)', // Red
+                                'rgba(54, 162, 235, 0.5)', // Blue
+                                'rgba(255, 206, 86, 0.5)', // Yellow
+                                'rgba(75, 192, 192, 0.5)', // Green
+                                // Add more colors as needed
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                // Add more colors as needed
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        // Set aspectRatio for smaller size
+                        aspectRatio: 1, // 1:1 aspect ratio
+                        // Add chart options here (e.g., legend, title, etc.)
+                    }
+                });
+
+            })
+            .catch(error => {
+                console.error('Error fetching expenses data:', error);
+            });
+
+            // Handle edit button click
+            document.querySelectorAll('.edit-expense-btn').forEach(function(button) {
+                button.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    var expenseId = button.dataset.expenseId;
+                    // Fetch the current expense data using AJAX
+                    fetch('/get_expense/' + expenseId)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Populate form fields with expense data
+                        document.getElementById('edit-expense-id').value = expenseId;
+                        document.getElementById('edit-item').value = data.item;
+                        document.getElementById('edit-amount').value = data.amount;
+                        document.getElementById('edit-category').value = data.category;
+                        document.getElementById('edit-date').value = data.date;
+                        // Show modal for editing expense
+                        document.getElementById('editExpenseModal').style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching expense data:', error);
+                    });
+                });
+            });
+
+            // Handle edit expense form submission
+            document.getElementById('edit-expense-form').addEventListener('submit', function(event) {
+                event.preventDefault();
+                //var formData = new FormData(document.getElementById('edit-expense-form'));
+
+                var formData = new FormData();
+        formData.append('csrf_token', document.getElementById('csrf_token').value); // Add CSRF token manually
+        formData.append('expense_id', document.getElementById('edit-expense-id').value);
+         formData.append('item', document.getElementById('edit-item').value);
+         formData.append('amount', document.getElementById('edit-amount').value);
+       formData.append('category', document.getElementById('edit-category').value);
+         formData.append('date', document.getElementById('edit-date').value);
+                fetch('/edit_expense/' + formData.get('expense_id'), {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload(); // Reload page after successful update
+                    } else {
+                        throw new Error('Failed to update expense');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating expense:', error);
+                    alert('Failed to update expense');
+                });
+            });
+
+            // Debugging output for category filtering
+
+            document.getElementById('categoryFilter').addEventListener('change', function() {
+    var selectedCategory = this.value.trim(); // Trim the selected category
+    console.log("Selected Category:", selectedCategory); // Debugging output
+    var expenseCards = document.querySelectorAll('.expense-card');
+
+    // Iterate through all expense cards
+    expenseCards.forEach(function(expenseCard) {
+        var categoryElement = expenseCard.querySelector('.category');
+        var categoryText = categoryElement ? categoryElement.textContent.trim().split(': ')[1] : '';
+
+        
+        console.log("Category Text:", categoryText); // Debugging output
+        console.log("Selected Category:", selectedCategory); // Debugging output
+        console.log("Is category match?", categoryText === selectedCategory); // Debugging output
+
+        // Show or hide expense card based on selected category
+        if (selectedCategory === '' || categoryText === selectedCategory) {
+            expenseCard.style.display = 'block';  // Show expense card
+        } else {
+            expenseCard.style.display = 'none';   // Hide expense card
+        }
+    });
+});
+        });
+    </script>
+</body>
+</html>
